@@ -43,10 +43,10 @@
 #include "synaptics_dsx_core.h"
 
 #define FW_IMAGE_NAME "synaptics/startup_fw_update.img"
-/*
+
 #define DO_STARTUP_FW_UPDATE
-*/
-/*
+
+
 #ifdef DO_STARTUP_FW_UPDATE
 #ifdef CONFIG_FB
 #define WAIT_FOR_FB_READY
@@ -54,7 +54,7 @@
 #define FB_READY_TIMEOUT_S 30
 #endif
 #endif
-*/
+
 #define FORCE_UPDATE false
 #define DO_LOCKDOWN false
 
@@ -3396,12 +3396,48 @@ exit:
 	return retval;
 }
 
+static const char *fwu_get_firmware_name(struct synaptics_rmi4_data *rmi4_data)
+{
+	const char *fw_name = NULL;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
+	int i, j;
+	bool found = false;
+
+	if (bdata->tp_id_num != 0) {
+		for (i = 0; i < bdata->config_array_size; i++) {
+			found = true;
+			for (j = 0; j < bdata->tp_id_num; j++) {
+				if (bdata->config_array[i].tp_ids[j] !=
+						rmi4_data->lockdown_info[bdata->tp_id_bytes[j]]) {
+					found = false;
+					break;
+				}
+			}
+
+			if (found) {
+				fw_name = bdata->config_array[i].fw_name;
+				break;
+			}
+		}
+	}
+
+	if (!fw_name)
+		fw_name = bdata->config_array[0].fw_name;
+
+	dev_info(rmi4_data->pdev->dev.parent,
+			"%s: Choose firmware %s\n", __func__, fw_name);
+
+	return fw_name;
+}
+
 static int fwu_start_reflash(void)
 {
 	int retval = 0;
 	enum flash_area flash_area;
 	const struct firmware *fw_entry = NULL;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+	const char *fw_name;
 
 	if (rmi4_data->sensor_sleep) {
 		dev_err(rmi4_data->pdev->dev.parent,
@@ -3409,6 +3445,8 @@ static int fwu_start_reflash(void)
 				__func__);
 		return -ENODEV;
 	}
+
+	fw_name = fwu_get_firmware_name(rmi4_data);
 
 	rmi4_data->stay_awake = true;
 
@@ -3418,8 +3456,8 @@ static int fwu_start_reflash(void)
 
 	if (fwu->image == NULL) {
 		retval = secure_memcpy(fwu->image_name, MAX_IMAGE_NAME_LEN,
-				FW_IMAGE_NAME, sizeof(FW_IMAGE_NAME),
-				sizeof(FW_IMAGE_NAME));
+				fw_name, sizeof(FW_IMAGE_NAME),
+				strlen(fw_name));
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: Failed to copy image file name\n",

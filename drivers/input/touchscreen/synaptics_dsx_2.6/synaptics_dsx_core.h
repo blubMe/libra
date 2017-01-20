@@ -92,6 +92,7 @@
 #define PRODUCT_INFO_SIZE 2
 #define PRODUCT_ID_SIZE 10
 #define BUILD_ID_SIZE 3
+#define LOCKDOWN_INFO_SIZE 8
 
 #define F12_FINGERS_TO_SUPPORT 10
 #define F12_NO_OBJECT_STATUS 0x00
@@ -359,6 +360,7 @@ struct synaptics_rmi4_data {
 	unsigned short f01_ctrl_base_addr;
 	unsigned short f01_data_base_addr;
 	unsigned int firmware_id;
+	unsigned char lockdown_info[LOCKDOWN_INFO_SIZE];
 	int irq;
 	int sensor_max_x;
 	int sensor_max_y;

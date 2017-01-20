@@ -65,7 +65,8 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 	u32 value;
 	const char *name;
 	struct property *prop;
-	struct device_node *np = dev->of_node;
+	struct device_node *temp, *np = dev->of_node;
+	struct synaptics_dsx_config_info *config_info;
 
 	bdata->irq_gpio = of_get_named_gpio_flags(np,
 			"synaptics,irq-gpio", 0,
@@ -247,6 +248,87 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 		bdata->vir_button_map->nbuttons = 0;
 		bdata->vir_button_map->map = NULL;
 	}
+
+	if (of_property_read_bool(np, "synaptics,product-id-as-lockdown"))
+		bdata->lockdown_area = LOCKDOWN_AREA_PRODUCT_ID;
+	else if (of_property_read_bool(np, "synaptics,guest-serialization-as-lockdown"))
+		bdata->lockdown_area = LOCKDOWN_AREA_GUEST_SERIALIZATION;
+	else
+		bdata->lockdown_area = LOCKDOWN_AREA_UNKNOWN;
+
+	prop = of_find_property(np, "synaptics,tp-id-byte", NULL);
+	if (prop && prop->length) {
+		bdata->tp_id_bytes = devm_kzalloc(dev,
+				prop->length,
+				GFP_KERNEL);
+		if (!bdata->tp_id_bytes)
+			return -ENOMEM;
+		bdata->tp_id_num = prop->length / sizeof(u8);
+		retval = of_property_read_u8_array(np,
+				"synaptics,tp-id-byte",
+				bdata->tp_id_bytes,
+				bdata->tp_id_num);
+		if (retval < 0) {
+			bdata->tp_id_num = 0;
+			bdata->tp_id_bytes = NULL;
+		}
+	} else {
+		dev_err(dev, "Don't know which byte of lockdown info to distinguish TP\n");
+		bdata->tp_id_num = 0;
+		bdata->tp_id_bytes = NULL;
+	}
+
+	retval = of_property_read_u32(np, "synaptics,config-array-size",
+		&bdata->config_array_size);
+	if (retval < 0) {
+		dev_err(dev, "Cannot get config array size\n");
+		return retval;
+	}
+
+	bdata->config_array = devm_kzalloc(dev, bdata->config_array_size *
+					sizeof(struct synaptics_dsx_config_info), GFP_KERNEL);
+	if (!bdata->config_array) {
+		dev_err(dev, "Unable to allocate memory\n");
+		return -ENOMEM;
+	}
+
+	config_info = bdata->config_array;
+	for_each_child_of_node(np, temp) {
+		prop = of_find_property(temp, "synaptics,tp-id", NULL);
+		if (prop && prop->length) {
+			if (bdata->tp_id_num != prop->length / sizeof(u8)) {
+				dev_err(dev, "Invalid TP id length\n");
+				return -EINVAL;
+			}
+			config_info->tp_ids = devm_kzalloc(dev,
+					prop->length,
+					GFP_KERNEL);
+			if (!config_info->tp_ids)
+				return -ENOMEM;
+			retval = of_property_read_u8_array(temp,
+					"synaptics,tp-id",
+					config_info->tp_ids,
+					bdata->tp_id_num);
+			if (retval < 0) {
+				dev_err(dev, "Error reading TP id\n");
+				return -EINVAL;
+			}
+		} else if (bdata->tp_id_num == 0) {
+			/* No TP id indicated, skip */
+			config_info->tp_ids = NULL;
+		} else {
+			dev_err(dev, "Cannot find TP id\n");
+			return -EINVAL;
+		}
+
+		retval = of_property_read_string(temp, "synaptics,fw-name",
+			&config_info->fw_name);
+		if (retval && (retval != -EINVAL)) {
+			dev_err(dev, "Unable to read firmware name\n");
+			return retval;
+		}
+		config_info++;
+	};
 
 	return 0;
 }

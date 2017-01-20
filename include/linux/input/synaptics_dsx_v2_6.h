@@ -53,6 +53,16 @@ struct synaptics_dsx_button_map {
 	unsigned int *map;
 };
 
+struct synaptics_dsx_config_info {
+	unsigned char *tp_ids;
+	const char *fw_name;
+};
+enum synaptics_dsx_lockdown_area {
+	LOCKDOWN_AREA_PRODUCT_ID = 0,
+	LOCKDOWN_AREA_GUEST_SERIALIZATION = 1,
+	LOCKDOWN_AREA_UNKNOWN = 0xFF,
+};
+
 /*
  * struct synaptics_dsx_board_data - DSX board data
  * @x_flip: x flip flag
@@ -92,6 +102,9 @@ struct synaptics_dsx_board_data {
 	int irq_on_state;
 	int power_gpio;
 	int power_on_state;
+	int config_array_size;
+	int tp_id_num;
+	unsigned char *tp_id_bytes;
 	int reset_gpio;
 	int reset_on_state;
 	int max_y_for_2d;
@@ -110,6 +123,8 @@ struct synaptics_dsx_board_data {
 	const char *bus_reg_name;
 	struct synaptics_dsx_button_map *cap_button_map;
 	struct synaptics_dsx_button_map *vir_button_map;
+	struct synaptics_dsx_config_info *config_array;
+	enum synaptics_dsx_lockdown_area lockdown_area;
 };
 
 #endif
