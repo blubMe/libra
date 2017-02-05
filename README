@@ -410,3 +410,14 @@ IF SOMETHING GOES WRONG:
    gdb'ing a non-running kernel currently fails because gdb (wrongly)
    disregards the starting offset for which the kernel is compiled.
 
+
+
+// NOTE : 
+   This Kernel is under developing stage , maybe can be unstable on ur device
+   pls be patient and if u have a problem / bugs pls send log or just tell me
+   
+   regrads : Pampam
+   thanks to : Demon000
+               kumajaya
+               
+/ "BE THE VOICE NOT THE ECHO"
